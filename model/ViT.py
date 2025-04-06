@@ -3,7 +3,7 @@ from torch import nn
 
 
 class PatchEmbedding(nn.Module):
-    def __init__(self, img_size=28, patch_size=4, in_channels=1, embed_dim=256):
+    def __init__(self, img_size=28, patch_size=4, in_channels=1, embed_dim=256) -> None:
         """
         Initializes the PatchEmbedding layer for the Vision Transformer.
 
@@ -30,7 +30,7 @@ class PatchEmbedding(nn.Module):
             in_channels, embed_dim, kernel_size=patch_size, stride=patch_size
         )
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Projects the input image to the embedding space.
 
@@ -64,7 +64,7 @@ class VisionTransformer(nn.Module):
         n_heads=8,
         mlp_ratio=4.0,
         dropout=0.1,
-    ):
+    ) -> None:
         """
         Initializes the Vision Transformer model.
 
@@ -124,7 +124,7 @@ class VisionTransformer(nn.Module):
         # pos embedding initialization
         nn.init.trunc_normal_(self.pos_embed, std=0.02)
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         The forward pass of the Vision Transformer.
 
