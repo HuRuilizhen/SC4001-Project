@@ -1,7 +1,6 @@
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
+import numpy as np
+from torch import nn
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from typing import Tuple
@@ -44,3 +43,61 @@ def get_dataloaders(
     )
 
     return train_loader, test_loader
+
+
+def mixup_data(
+    x: torch.Tensor, y: torch.Tensor, alpha: float = 0.2
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, float]:
+    """
+    Mixes up the data and labels according to the mixup algorithm.
+
+    Parameters:
+    -----------
+        x: The input tensor.
+        y: The label tensor.
+        alpha: The alpha parameter for the beta distribution. It controls the ratio of the mixup.
+
+    Returns:
+    --------
+        A tuple (mixed_x, y_a, y_b, lam) where mixed_x is the mixed up input tensor, y_a and y_b are the labels, and lam is the lambda value used to mix the data.
+
+    Raises:
+    -------
+        ValueError: If alpha is not between 0 and 1.
+    """
+    if alpha < 0 or alpha > 1:
+        raise ValueError("alpha must be between 0 and 1")
+
+    lam = np.random.beta(alpha, alpha)
+
+    batch_size = x.size()[0]
+    index = torch.randperm(batch_size)
+
+    mixed_x = lam * x + (1 - lam) * x[index, :]
+    y_a, y_b = y, y[index]
+    return mixed_x, y_a, y_b, lam
+
+
+def mixup_criterion(
+    criterion: nn.CrossEntropyLoss | nn.MSELoss,
+    pred: torch.Tensor,
+    y_a: torch.Tensor,
+    y_b: torch.Tensor,
+    lam: float,
+) -> torch.Tensor:
+    """
+    Computes the mixup loss according to the mixup algorithm.
+
+    Parameters:
+    -----------
+        criterion: The loss function to use.
+        pred: The predicted tensor.
+        y_a: The first label tensor.
+        y_b: The second label tensor.
+        lam: The lambda value used to mix the labels.
+
+    Returns:
+    --------
+        The mixed loss tensor.
+    """
+    return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)

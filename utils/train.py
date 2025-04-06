@@ -3,6 +3,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torch import optim
 from typing import Tuple
+from utils.data import mixup_data, mixup_criterion
 
 
 def get_device() -> torch.device:
@@ -74,6 +75,56 @@ def train(
             optimizer.zero_grad()
             outputs = model(inputs)
             loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+
+            running_loss += loss.item()
+            epoch_loss += loss.item()
+
+            if (i + 1) % len_split == 0:
+                print(
+                    f"Epoch [{epoch+1}/{epochs}], Step [{i+1}/{len_loader}], Loss: {running_loss/len_split:.4f}"
+                )
+                running_loss = 0.0
+
+        lost_docs.append(epoch_loss / len(train_loader))
+
+    print("Finished Training")
+
+    return model, lost_docs
+
+
+def train_mixup(
+    model: nn.Module,
+    train_loader: DataLoader,
+    criterion: nn.CrossEntropyLoss | nn.MSELoss,
+    optimizer: optim.Adam | optim.SGD | optim.RMSprop | optim.AdamW,
+    epochs: int = 5,
+    mixup_alpha: float = 0.2,
+    device: torch.device = torch.device(
+        "mps"
+        if torch.backends.mps.is_available() and torch.backends.mps.is_built()
+        else "cuda:0" if torch.cuda.is_available() else "cpu"
+    ),
+) -> tuple[nn.Module, list[float]]:
+
+    model.to(device)
+    model.train()
+
+    lost_docs = []
+    for epoch in range(epochs):
+        running_loss = 0.0
+        epoch_loss = 0.0
+
+        len_loader = len(train_loader)
+        len_split = len_loader // 10
+
+        for i, (inputs, labels) in enumerate(train_loader):
+            inputs, labels = inputs.to(device), labels.to(device)
+            optimizer.zero_grad()
+            mixed_x, y_a, y_b, lam = mixup_data(inputs, labels, mixup_alpha)
+            outputs = model(mixed_x)
+            loss = mixup_criterion(criterion, outputs, y_a, y_b, lam)
             loss.backward()
             optimizer.step()
 
