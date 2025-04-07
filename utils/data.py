@@ -8,7 +8,7 @@ from typing import Tuple
 
 def get_dataloaders(
     train_loader_batch_size: int = 64,
-    test_loader_batch_size: int = 10000,
+    test_loader_batch_size: int = 256,
     root: str = "./data",
 ) -> Tuple[DataLoader, DataLoader]:
     """

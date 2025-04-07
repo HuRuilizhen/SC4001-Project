@@ -55,6 +55,11 @@ def train(
         if torch.backends.mps.is_available() and torch.backends.mps.is_built()
         else "cuda:0" if torch.cuda.is_available() else "cpu"
     ),
+    early_stopping: bool = False,
+    early_stopping_patience: int = 3,
+    early_stopping_min_delta: float = 0.0,
+    mixup: bool = False,
+    mixup_alpha: float = 0.2,
 ) -> tuple[nn.Module, list[float]]:
     """
     Train the model with the given training data loader and optimization parameters.
@@ -73,6 +78,17 @@ def train(
         The number of epochs to train the model. Defaults to 5.
     device : torch.device, optional
         The device to train the model on. Defaults to torch.device("mps" if torch.backends.mps.is_available() and torch.backends.mps.is_built() else "cuda:0" if torch.cuda.is_available() else "cpu").
+    early_stopping : bool, optional
+        Whether to use early stopping. Defaults to False.
+    early_stopping_patience : int, optional
+        The number of epochs to wait before early stopping. Defaults to 3.
+    early_stopping_min_delta : float, optional
+        The minimum change in loss for early stopping. Defaults to 0.0.
+    mixup : bool, optional
+        Whether to use mixup data augmentation. Defaults to False.
+    mixup_alpha : float, optional
+        The mixup alpha parameter. Defaults to 0.2.
+
 
     Returns
     -------
@@ -84,6 +100,9 @@ def train(
     model.train()
 
     lost_docs = []
+    lowest_loss = np.inf
+    counter = 0
+
     for epoch in range(epochs):
         running_loss = 0.0
         epoch_loss = 0.0
@@ -94,9 +113,16 @@ def train(
         for i, (inputs, labels) in enumerate(train_loader):
             inputs, labels = inputs.to(device), labels.to(device)
             optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
-            loss.backward()
+
+            if mixup:
+                mixed_x, y_a, y_b, lam = mixup_data(inputs, labels, mixup_alpha)
+                outputs = model(mixed_x)
+                loss = mixup_criterion(criterion, outputs, y_a, y_b, lam)
+                loss.backward()
+            else:
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+                loss.backward()
             optimizer.step()
 
             running_loss += loss.item()
@@ -108,57 +134,18 @@ def train(
                 )
                 running_loss = 0.0
 
-        lost_docs.append(epoch_loss / len(train_loader))
+        epoch_loss /= len(train_loader)
+        if early_stopping:
+            if epoch_loss < lowest_loss - early_stopping_min_delta:
+                lowest_loss = epoch_loss
+                counter = 0
+            else:
+                counter += 1
+                if counter >= early_stopping_patience:
+                    print("Early Stopping")
+                    break
 
-    print("Finished Training")
-
-    return model, lost_docs
-
-
-def train_mixup(
-    model: nn.Module,
-    train_loader: DataLoader,
-    criterion: nn.CrossEntropyLoss | nn.MSELoss,
-    optimizer: optim.Adam | optim.SGD | optim.RMSprop | optim.AdamW,
-    epochs: int = 5,
-    mixup_alpha: float = 0.2,
-    device: torch.device = torch.device(
-        "mps"
-        if torch.backends.mps.is_available() and torch.backends.mps.is_built()
-        else "cuda:0" if torch.cuda.is_available() else "cpu"
-    ),
-) -> tuple[nn.Module, list[float]]:
-
-    model.to(device)
-    model.train()
-
-    lost_docs = []
-    for epoch in range(epochs):
-        running_loss = 0.0
-        epoch_loss = 0.0
-
-        len_loader = len(train_loader)
-        len_split = len_loader // 10
-
-        for i, (inputs, labels) in enumerate(train_loader):
-            inputs, labels = inputs.to(device), labels.to(device)
-            optimizer.zero_grad()
-            mixed_x, y_a, y_b, lam = mixup_data(inputs, labels, mixup_alpha)
-            outputs = model(mixed_x)
-            loss = mixup_criterion(criterion, outputs, y_a, y_b, lam)
-            loss.backward()
-            optimizer.step()
-
-            running_loss += loss.item()
-            epoch_loss += loss.item()
-
-            if (i + 1) % len_split == 0:
-                print(
-                    f"Epoch [{epoch+1}/{epochs}], Step [{i+1}/{len_loader}], Loss: {running_loss/len_split:.4f}"
-                )
-                running_loss = 0.0
-
-        lost_docs.append(epoch_loss / len(train_loader))
+        lost_docs.append(epoch_loss)
 
     print("Finished Training")
 

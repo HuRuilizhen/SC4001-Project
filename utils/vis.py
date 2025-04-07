@@ -35,7 +35,7 @@ def imshow(img: torch.Tensor) -> None:
     """
     img = img / 2 + 0.5
     npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
+    plt.imshow(np.transpose(npimg, (1, 2, 0)), cmap="gray")
 
 
 def get_predictions_examples(
@@ -72,7 +72,7 @@ def get_predictions_examples(
         outputs = model(images)
         _, predicted = torch.max(outputs, 1)
 
-        fig = plt.figure(figsize=(12, 4))
+        fig = plt.figure(figsize=(num_examples * 3, 4))
         for idx in np.arange(num_examples):
             ax = fig.add_subplot(1, num_examples, int(idx + 1), xticks=[], yticks=[])
             imshow(images[idx])
@@ -80,4 +80,5 @@ def get_predictions_examples(
                 f"{classes[predicted[idx]]} ({classes[labels[idx]]})",
                 color=("green" if predicted[idx] == labels[idx] else "red"),
             )
+        plt.tight_layout()
         plt.show()
