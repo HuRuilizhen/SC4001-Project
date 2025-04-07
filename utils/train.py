@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
@@ -21,6 +22,26 @@ def get_device() -> torch.device:
         if torch.backends.mps.is_available() and torch.backends.mps.is_built()
         else "cuda:0" if torch.cuda.is_available() else "cpu"
     )
+
+
+def set_seed(seed: int = 42) -> int:
+    """
+    Sets the random seed for NumPy and PyTorch operations.
+
+    Parameters
+    ----------
+    seed : int, optional
+        The seed value to set. Defaults to 42.
+
+    Returns
+    -------
+    int
+        The seed value that was set.
+    """
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    return seed
 
 
 def train(
