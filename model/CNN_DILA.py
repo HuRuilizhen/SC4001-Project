@@ -1,8 +1,19 @@
+import torch
 import torch.nn as nn
 
 
 class CNN_DILA(nn.Module):
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Initialize the layers of the CNN_DILA model.
+
+        The CNN_DILA model consists of two convolutional layers and two fully connected layers.
+        The first convolutional layer takes as input a 1x28x28 image and outputs 32 feature maps.
+        The second convolutional layer takes as input 32 feature maps and outputs 64 feature maps.
+        The output of the second convolutional layer is flattened and passed to the first fully connected layer,
+        which outputs 128 feature maps. The output of the first fully connected layer is passed to the second fully connected layer,
+        which outputs 10 feature maps, corresponding to the 10 classes of the MNIST dataset.
+        """
         super(CNN_DILA, self).__init__()
         # Convolution layer 1: input 1 channel (gray image), output 32 feature maps, kernel size 3x3, dilation 2
         self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=2, dilation=2)
@@ -21,7 +32,21 @@ class CNN_DILA(nn.Module):
         self.relu3 = nn.ReLU()
         self.fc2 = nn.Linear(128, 10)  # output layer, 10 classes
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Defines the forward pass of the CNN_DILA model.
+
+        Parameters:
+        -----------
+        x : torch.Tensor
+            The input tensor with shape (batch_size, channels, height, width).
+
+        Returns:
+        -------
+        torch.Tensor
+            The output tensor with shape (batch_size, num_classes), representing
+            the class scores for each input image.
+        """
         x = self.pool1(self.relu1(self.conv1(x)))
         x = self.pool2(self.relu2(self.conv2(x)))
         x = x.view(-1, 64 * 7 * 7)  # flatten feature maps to one-dimensional vector
